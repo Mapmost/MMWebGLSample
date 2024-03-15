@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Hello Mapmost</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .mapmostgl-popup-anchor-bottom,
+        .mapmostgl-popup-anchor-bottom-left,
+        .mapmostgl-popup-anchor-bottom-right {
+            padding-bottom: 10px;
+        }
+
+        .marker {
+            width: 34px;
+            height: 34px;
+            background-image: url("https://delivery.mapmost.com/cdn/WebGLData/img/Mapmost.png");
+            background-size: 100%;
+        }
+
+        .tip {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background: #fff;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            line-height: 24px;
+        }
+    </style>
+    <script src="https://delivery.mapmost.com/cdn/sdk/webgl/v3.5.0/mapmost-webgl-min.js"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div class="tip">
+        <span>请点击M图标。</span>
+    </div>
+    <script>
+        let map = new mapmost.Map({
+            container: 'map',
+            style: "https://delivery.mapmost.com/cdn/styles/sample_data.json",
+            center: [120.71923008473078, 31.29446443371741],
+            zoom: 14.7,
+            sky: 'light',
+            userId:'***'  // 请输入您的授权码，授权码获取地址为：https://www.mapmost.com/#/productApply/webgl
+        });
+
+        let markers;
+        map.on('load', function () {
+            const el = document.createElement('div');
+            el.className = 'marker';
+
+            el.addEventListener('click', () => {
+
+                // 添加popup
+                popup = new mapmost.Popup({ focusAfterOpen: false, closeOnClick: false })
+                    .setLngLat([120.71829918404882, 31.293917115249442])
+                    .setHTML('<h1>Hello Mapmost!</h1>')
+                    .addTo(map);
+
+                // 切换视角
+                map.flyTo({
+                    center: [120.71879718862579, 31.29518770414009],
+                    zoom: 16.09,
+                    bearing: 17.60,
+                    pitch: 60.00,
+                    speed: 0.7,
+                    curve: 1,
+                    easing(t) {
+                        return t;
+                    }
+                });
+            });
+
+            // 添加Marker
+            new mapmost.Marker(el)
+                .setLngLat([120.71829918404882, 31.293917115249442])
+                .addTo(map);
+        });
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>可视域分析</title>
+    <meta charset='utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body,
+        #map {
+            height: 100%;
+        }
+
+        .btnBox {
+            position: absolute;
+            top: 0;
+        }
+
+        .btnRow {
+            display: flex;
+            flex-direction: row;
+        }
+
+        .btnColumn {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .btnItem {
+            margin: 10px 5px 10px 5px;
+        }
+
+        #nums {
+            position: absolute;
+            top: 30px;
+            left: 10px;
+        }
+    </style>
+    <script src="https://delivery.mapmost.com/cdn/sdk/webgl/v3.5.0/mapmost-webgl-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+</head>
+
+<body>
+    <div id='map'></div>
+    <div class="btnBox">
+        <div class="btnRow">
+            <button class="btnItem" onclick="addAnalysis()">添加分析</button>
+            <button class="btnItem" onclick="removeAnalysis()">删除分析</button>
+            <button class="btnItem" onclick="removeAll()">删除全部</button>
+        </div>
+    </div>
+    <p id="nums">当前视域分析数量：0</p>
+    <script>
+        let opt = {};
+        let viewshed = {};
+        let gui = new dat.GUI({ name: 'degug' });
+        let folder;
+
+        // 添加参数调整面板
+        function initFolder() {
+            if (folder) {
+                gui.removeFolder(folder);
+                folder = null;
+            }
+
+            folder = gui.addFolder('viewshed')
+            folder.add(viewshed, 'pitch', 0, 360).step(1).onChange(value => {
+                opt.pitch = value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'bearing', 0, 360).step(1).onChange(value => {
+                opt.bearing = value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'fovX', 0, 180).step(1).onChange(value => {
+                opt.fovX = value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'fovY', 0, 180).step(1).onChange(value => {
+                opt.fovY = value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'distance', 100, 10000).step(10).onChange(value => {
+                opt.distance = value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'x', -0.01, 0.01).step(0.00001).onChange(value => {
+                opt.position[0] = opt_x + value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'y', -0.01, 0.01).step(0.00001).onChange(value => {
+                opt.position[1] = opt_y + value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'z', -1000, 1000).step(10).onChange(value => {
+                opt.position[2] = opt_z + value;
+                analysis.analyse(opt);
+            });
+            folder.addColor(viewshed, 'visibleColor').onChange(value => {
+                opt.visibleColor = value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'visibleOpacity', 0, 1).step(0.1).onChange(value => {
+                opt.visibleOpacity = value;
+                analysis.analyse(opt);
+            });
+            folder.addColor(viewshed, 'invisibleColor').onChange(value => {
+                opt.invisibleColor = value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'invisibleOpacity', 0, 1).step(0.1).onChange(value => {
+                opt.invisibleOpacity = value;
+                analysis.analyse(opt);
+            });
+            folder.add(viewshed, 'wireframeDisplay').onChange(value => {
+                opt.wireframeDisplay = value;
+                analysis.analyse(opt);
+            })
+            folder.add(viewshed, 'wireframeDensity', 2, 20).step(1).onChange(value => {
+                opt.wireframeDensity = value;
+                analysis.analyse(opt);
+            })
+            folder.addColor(viewshed, 'wireframeColor').onChange(value => {
+                opt.wireframeColor = value;
+                analysis.analyse(opt);
+            })
+        }
+
+        const map = new mapmost.Map({
+            container: 'map',
+            enableOIT: false,
+            deferredRendering: true,
+            style: "https://delivery.mapmost.com/cdn/styles/sample_data.json",
+            center: [120.71964314634613, 31.29289528537531],
+            zoom: 15.8,
+            pitch: 56.53,
+            viewshedBufferSize: 1024,
+            sky: 'light',
+            userId: '***'  // 请输入您的授权码，授权码获取地址为：https://www.mapmost.com/#/productApply/webgl
+        });
+
+        let idx = -1;
+        let analysisList = [];
+        let enableAnalysis = false;
+        let analysis, opt_x, opt_y, opt_z;
+
+        // 设置默认参数
+        let defaultOpt = {
+            position: [120.72564314634613, 31.29289528537531, 300], // 视点位置
+            pitch: 60, // 俯仰角
+            bearing: 65, // 方位角
+            fovX: 90, // 水平视场角
+            fovY: 45, // 垂直视场角
+            distance: 1000, // 可视距离
+            visibleColor: "#007f00", // 可见区域颜色
+            visibleOpacity: 0.3, // 可见区域透明度
+            invisibleColor: "#990000", // 不可见区域颜色
+            invisibleOpacity: 0.5,  // 不可见区域透明度
+            wireframeDisplay: true, // 是否显示提示线
+            wireframeColor: "#ffff00", // 提示线颜色
+            wireframeDensity: 8, // 提示线密度
+        }
+
+        function initParams(opt_) {
+            opt_x = opt_.position[0];
+            opt_y = opt_.position[1];
+            opt_z = opt_.position[2];
+
+            opt = {
+                position: opt_.position.slice(),
+                pitch: opt_.pitch,
+                bearing: opt_.bearing,
+                fovX: opt_.fovX,
+                fovY: opt_.fovY,
+                distance: opt_.distance,
+                visibleColor: opt_.visibleColor,
+                visibleOpacity: opt_.visibleOpacity,
+                invisibleColor: opt_.invisibleColor,
+                invisibleOpacity: opt_.invisibleOpacity,
+                wireframeColor: opt_.wireframeColor,
+                wireframeDisplay: opt_.wireframeDisplay,
+                wireframeDensity: opt_.wireframeDensity,
+            }
+
+            viewshed = {
+                x: 0,
+                y: 0,
+                z: 0,
+                pitch: opt_.pitch,
+                bearing: opt_.bearing,
+                fovX: opt_.fovX,
+                fovY: opt_.fovY,
+                distance: opt_.distance,
+                visibleColor: opt_.visibleColor,
+                visibleOpacity: opt_.visibleOpacity,
+                invisibleColor: opt_.invisibleColor,
+                invisibleOpacity: opt_.invisibleOpacity,
+                wireframeColor: opt_.wireframeColor,
+                wireframeDisplay: opt_.wireframeDisplay,
+                wireframeDensity: opt_.wireframeDensity,
+            }
+        }
+
+        // 添加分析
+        function addAnalysis() {
+
+            initParams(defaultOpt);
+            initFolder();
+
+            analysis = new mapmost.ViewshedAnalysis(map);
+            analysis.analyse(opt);
+            idx += 1;
+            analysisList.push(analysis);
+            document.getElementById('nums').innerHTML = '当前视域分析数量：' + (idx + 1).toString();
+        }
+
+        // 删除分析
+        function removeAnalysis() {
+            analysis = analysisList[idx];
+            analysis.destroy();
+            analysis = null;
+            analysisList[idx] = null;
+            analysisList.length = analysisList.length - 1;
+
+            if (folder) {
+                gui.removeFolder(folder);
+                folder = null;
+            }
+
+            if (idx >= 0) {
+                idx -= 1;
+
+                if (idx >= 0) {
+                    analysis = analysisList[idx];
+
+                    let opt_ = analysis.getOption();
+                    initParams(opt_);
+                    initFolder();
+                }
+            }
+
+            document.getElementById('nums').innerHTML = '当前视域分析数量：' + (idx + 1).toString();
+        }
+
+        // 清空所有
+        function removeAll() {
+            for (let i = idx; i >= 0; i--) {
+                analysisList[i].destroy();
+            }
+
+            idx = -1;
+            analysisList = [];
+            analysisList.length = 0;
+            analysis = null;
+            if (folder) {
+                gui.removeFolder(folder);
+                folder = null;
+            }
+            document.getElementById('nums').innerHTML = '当前视域分析数量：' + (idx + 1).toString();
+        }
+    </script>
+</body>
+
+</html>

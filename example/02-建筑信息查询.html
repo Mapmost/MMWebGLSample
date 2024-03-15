@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>建筑信息查询</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .mapmostgl-popup-anchor-bottom,
+        .mapmostgl-popup-anchor-bottom-left,
+        .mapmostgl-popup-anchor-bottom-right {
+            padding-bottom: 10px;
+        }
+
+        .tip {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background: #fff;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            line-height: 24px;
+        }
+    </style>
+    <script src="https://delivery.mapmost.com/cdn/sdk/webgl/v3.5.0/mapmost-webgl-min.js"></script>
+
+</head>
+
+<body>
+    <div id="map"></div>
+    <div class="tip">
+        <span>请移动鼠标查看建筑信息。</span>
+    </div>
+    <script>
+        let map = new mapmost.Map({
+            container: 'map',
+            style: "https://delivery.mapmost.com/cdn/styles/sample_data.json",
+            center: [120.71964314634613, 31.29289528537531],
+            zoom: 16.21,
+            pitch: 56.53,
+            sky: 'light',
+            userId:'***'  // 请输入您的授权码，授权码获取地址为：https://www.mapmost.com/#/productApply/webgl
+        });
+
+        let markers;
+        map.on('load', function () {
+            map.removeLayer('building')
+            map.addLayer({
+                "id": "building",
+                "type": "fill-extrusion",
+                "source": "wp2wqan1i",
+                "source-layer": "building",
+                "minzoom": 14.5,
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "fill-extrusion-opacity": 1,
+                    "fill-extrusion-color": '#ffffff',
+                    "fill-extrusion-height": [
+                        "interpolate",
+                        ["linear"],
+                        ["zoom"],
+                        14.5,
+                        10,
+                        16,
+                        [
+                            "to-number",
+                            [
+                                "get",
+                                "height_2"
+                            ]
+                        ]
+                    ]
+                }
+            });
+
+            map.addLayer({
+                "id": "building1",
+                "type": "fill-extrusion",
+                "source": "wp2wqan1i",
+                "source-layer": "building",
+                "minzoom": 14.5,
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "fill-extrusion-opacity": 1,
+                    "fill-extrusion-color": '#FFF200',
+                    "fill-extrusion-height": [
+                        "interpolate",
+                        ["linear"],
+                        ["zoom"],
+                        14.5,
+                        10,
+                        16,
+                        [
+                            "to-number",
+                            [
+                                "get",
+                                "height_2"
+                            ]
+                        ]
+                    ]
+                },
+                "filter": ["in", "id", ""]
+            });
+        });
+
+        let mapPopup;
+        let hoveredFeatureId = null;
+        map.on('mousemove', 'building', (e) => {
+            if (e.features.length > 0) {
+                if (hoveredFeatureId !== null) {
+                    map.setFilter('building1', ["in", "id", ""])
+                    hoveredFeatureId = null;
+                    if (mapPopup) {
+                        mapPopup.remove()
+                        mapPopup = null
+                    }
+                }
+                hoveredFeatureId = e.features[0].properties.id;
+                map.setFilter('building1', ["in", "id", hoveredFeatureId])
+                let jzzgdgd = e.features[0].properties.height_2;
+                mapPopup = new mapmost.Popup({ focusAfterOpen: false, closeOnClick: false })
+                    .setLngLat(e.lngLat)
+                    .setHTML("建筑物高度：" + jzzgdgd)
+                    .addTo(map)
+            }
+        });
+
+        map.on('mouseleave', 'building', () => {
+            if (hoveredFeatureId !== null) {
+                map.setFilter('building1', ["in", "id", ""])
+            }
+            hoveredFeatureId = null;
+            if (mapPopup) {
+                mapPopup.remove()
+                mapPopup = null
+            }
+        });
+    </script>
+</body>
+</html>

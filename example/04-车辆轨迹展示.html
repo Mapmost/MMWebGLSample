@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>车辆轨迹展示</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .btn-group {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            cursor: pointer;
+            z-index: 99999;
+        }
+
+        button {
+            cursor: pointer;
+            width: 90px;
+            height: 35px;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .tip {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background: #fff;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            line-height: 24px;
+        }
+    </style>
+    <script src="https://delivery.mapmost.com/cdn/sdk/webgl/v3.5.0/mapmost-webgl-min.js"></script>
+    <script src="https://delivery.mapmost.com/cdn/WebGLData/js/turf.min.js"></script>
+
+</head>
+
+<body>
+    <div id="map"></div>
+    <div class="btn-group">
+        <button onClick="moveModel()">开启动画</button>
+    </div>
+    <div class="tip">
+        <span>点击开启动画按钮，查看公交车运行动画。</span>
+    </div>
+    <script>
+        let map = new mapmost.Map({
+            container: 'map',
+            style: "https://delivery.mapmost.com/cdn/styles/sample_data.json",
+            center: [120.71733311037212, 31.296822135936466],
+            zoom: 19.48,
+            pitch: 72.60,
+            bearing: 133.80,
+            sky: 'light',
+            env3D: {
+                exposure: 1.0,
+            },
+            userId: '***'  // 请输入您的授权码，授权码获取地址为：https://www.mapmost.com/#/productApply/webgl
+        });
+
+        let modelGroup;
+        let route = [];
+        map.on('load', function () {
+
+            // 添加公交车模型
+            let models_obj = [
+                "https://delivery.mapmost.com/cdn/WebGLData/model/Bus.glb"
+            ].map(item => ({
+                type: 'glb',
+                url: item,
+            }));
+
+            let options = {
+                id: 'model_id',
+                type: 'model',
+                models: models_obj,
+                center: [120.71718023833984, 31.296960318183864],
+                callback: function (group, layer) {
+                    modelGroup = group;
+                    modelGroup.setRotation({ x: 0, y: 0, z: 90 })
+                }
+            };
+            map.addLayer(options);
+
+            // 生成车辆路径数据
+            let coordinates = [
+                [120.71718023833984, 31.296960318183864],
+                [120.7177643706313, 31.296962761498207],
+                [120.71793725461362, 31.296945375740577],
+                [120.71799753436414, 31.29689497455739],
+                [120.71803682467606, 31.296815219452483],
+                [120.71803572907237, 31.296706274686656],
+                [120.71802764287372, 31.296528361467182]
+            ]
+            let sliced = turf.lineChunk(turf.lineString(coordinates), 0.0003, { units: 'kilometers' });
+            route = handleConcentrated(sliced.features)
+        });
+
+        let orignAngle = 0; // 初始模型角度
+        let nextAngle = 90; // 下个点位角度
+
+        // 从首个点开始，遍历路径点位依次移动
+        let index = 0;
+
+        // 车辆位置移动
+        function moveModel() {
+            if (index === route.length - 1) {
+                setTimeout(() => {
+                    index = 0
+                }, 1000);
+            }
+            if (index < route.length) {
+                modelGroup.setCoords(route[index])
+
+                // 先记录前一个点位模型的方位角
+                orignAngle = nextAngle;
+
+                // 利用下一个点计算当前点位模型的方位角，最后一个点位不更新
+                if (index < route.length - 1) {
+                    nextAngle = calculateAngle(route[index], route[index + 1])
+                }
+
+                // 设置旋转值，计算方位角的更新值
+                modelGroup.setRotation({ x: 0, y: 0, z: -(nextAngle - orignAngle) }) // 方位角顺时针为正，旋转角逆时针为正，所以需要取反
+
+                // 相机跟随
+                let options = {
+                    position: [route[index][0], route[index][1], 0],
+                    distance: 70,
+                    pitch: 65,
+                    duration: 20,
+                    complete: function () {
+                        moveModel()
+                    }
+                }
+                map.cameraFlyTo(options);
+            }
+            index++;
+        }
+
+        // 路径数据内插
+        function handleConcentrated(line) {
+            let codes = [];
+            if (line.length) {
+                line.map(item => {
+                    item.geometry.coordinates.map(d => {
+                        codes.push(d);
+                    })
+                    codes.pop()
+                })
+            }
+            return codes
+        }
+
+        // 计算转向角
+        function calculateAngle(startPoint, endPoint) {
+            let bearing;
+            if (endPoint[0] === startPoint[0]) {
+                bearing = endPoint[1] > startPoint[1] ? 0 : 180;
+            } else {
+                let k = (endPoint[1] - startPoint[1]) / (endPoint[0] - startPoint[0])
+                let radian = Math.atan(k);
+                if (startPoint[0] < endPoint[0]) {
+                    bearing = -radian + Math.PI / 2
+                } else {
+                    bearing = -radian + Math.PI * 3 / 2
+                }
+            }
+            return bearing * 180 / Math.PI;
+        }
+
+    </script>
+</body>
+
+</html>

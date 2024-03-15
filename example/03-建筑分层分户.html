@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>建筑分层分户</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        #floorName {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: none;
+            padding: 15px;
+            background-color: #cccccc73;
+            font-weight: bold;
+            z-index: 999;
+        }
+
+        .tip {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background: #fff;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            line-height: 24px;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            color: #fff;
+            font-weight: bold;
+        }
+    </style>
+    <script src="https://delivery.mapmost.com/cdn/sdk/webgl/v3.5.0/mapmost-webgl-min.js"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div id="floorName"></div>
+    <div class="tip" id="tip">
+        <span>1、点击三维建筑，查看分层情况；</br>2、点击分层模型，查看户室信息。</span>
+    </div>
+    <div class="loading" id="loading">Loading…</div>
+    <script>
+        let map = new mapmost.Map({
+            container: 'map',
+            style: "https://delivery.mapmost.com/cdn/styles/sample_data.json",
+            center: [120.71413254870419, 31.297873071765963],
+            zoom: 17.63,
+            pitch: 69.58,
+            bearing: -158.71,
+            sky: 'light',
+            env3D: {
+                exposure: 1.2,
+                envMap: 'https://delivery.mapmost.com/cdn/WebGLData/hdr/yun_2.hdr'
+            },
+            userId: '***'  // 请输入您的授权码，授权码获取地址为：https://www.mapmost.com/#/productApply/webgl
+        });
+
+        let modelLayer, modelGroup, selectedObj
+        let THREE = mapmost.THREE
+        map.on('load', function () {
+            let models_obj = [
+                "https://delivery.mapmost.com/cdn/WebGLData/model/FCFH_All.glb"
+            ].map(item => ({
+                type: 'glb',
+                url: item,
+            }));
+
+            let options = {
+                id: 'model_id',
+                type: 'model',
+                models: models_obj,
+                center: [120.71460597127918, 31.298958839187236],
+                callback: function (group, layer) {
+                    document.getElementById('tip').style.display = 'block'
+                    document.getElementById('loading').style.display = 'none'
+
+                    modelLayer = layer;
+                    modelGroup = group;
+                    modelGroup.setTranslate({ x: -9.9, y: 5, z: -12.7 })
+
+                    // 地理围栏
+                    let GeoFencing_fade = layer.addGeoFencing({
+                        type: "fade",
+                        color: "#ffb520",
+                        speed: 8,
+                        opacity: 0.8,
+                        height: 10,
+                        data: {
+                            name: "name",
+                            coordinate: [[120.71500282202902, 31.299161282453255], [120.71435298081622, 31.299175790396475], [120.71437943891073, 31.298845042952962], [120.7150045060119, 31.2988371753], [120.71500282202902, 31.299161282453255]],
+                        }
+                    });
+                }
+            };
+            map.addLayer(options);
+
+            map.on('click', function (e) {
+                if (modelLayer) {
+                    selectObj(e.point)
+                }
+            })
+        });
+
+        function selectObj(point) {
+            let intersect = modelLayer.selectModel(point)[0];
+
+            // 计算与摘取射线相交的物体，如果存在相交，则突出显示它。
+            if (intersect) {
+                let nearestObject = intersect.object;
+                if (intersect.object.parent.name === "THJZ01302") {
+                    modelLayer.removeModel(modelGroup)
+                    map.setLayoutProperty("building", "visibility", "none")
+                    let models_obj1 = [
+                        "https://delivery.mapmost.com/cdn/WebGLData/model/FCFH_BM.glb"
+                    ].map(item => ({
+                        type: 'glb',
+                        url: item,
+                    }));
+                    modelLayer.addModel(models_obj1, [120.71460597127918, 31.298958839187236], function (model) {
+                        model.setTranslate({ x: 0, y: 0, z: -3.2 })
+                        let obj = model.children[0];
+                        obj.traverse(function (child) {
+                            if (child instanceof THREE.Mesh) {
+                                let floor = child.name.split('_')[0]
+                                if (floor === 'TOP') {
+                                    child.translateY(5 * 16)
+                                } else if (floor === 'B1F' || floor === '1F') {
+                                } else {
+                                    let num = Number(floor.split('F')[0])
+                                    child.translateY(5 * num)
+                                }
+                                child.material.transparent = true
+                                child.material.opacity = 0.7
+                                child.baseMaterial = child.material;
+                            }
+                        })
+                    })
+                } else {
+
+                    // 选中的不是之前选中的层
+                    if (!(selectedObj === nearestObject)) {
+                        _remove();
+                        const floor = nearestObject.name;
+
+                        // 是否是选中层
+                        selectedObj = nearestObject;
+                        selectedObj.traverse(function (child) {
+                            if (child instanceof THREE.Mesh) {
+
+                                // 将原有材质存储到自定义属性
+                                child.baseMaterial = child.material;
+
+                                // 复制原有的材质并修改颜色
+                                child.material = child.material.clone();
+                                child.material.color = new THREE.Color(0x4FCAFF);
+                            }
+                        });
+
+                        // 此处显示楼层
+                        const info = document.getElementById('floorName');
+                        info.innerText = '这是：' + floor;
+                        info.style.display = 'block';
+                    }
+                }
+            } else {
+                _remove();
+            }
+        }
+
+        function _remove() {
+            if (selectedObj) {
+                selectedObj.traverse(function (child) {
+                    child.material = child.baseMaterial;
+                });
+                selectedObj = undefined;
+            }
+            const info = document.getElementById('floorName');
+            info.style.display = 'none';
+        }
+
+    </script>
+</body>
+
+</html>
