@@ -31,11 +31,11 @@
 
 - 更多能力说明请参考 [文档](https://www.mapmost.com/mapmost_docs/webgl/latest/docs/intro/)。
 
-### 快速开始
+## 快速开始
 
-#### SDK 安装 ![Static Badge](https://img.shields.io/badge/%40mapmost%2Fmapmost--webgl-3.5.0-green)
+### SDK 安装 ![Static Badge](https://img.shields.io/badge/%40mapmost%2Fmapmost--webgl-3.5.0-green)
 
-  ##### Module bundler
+  #### Module bundler
 
   通过npm安装依赖包。
 
@@ -52,7 +52,7 @@
   - **import**
   `import mapmost from '@mapmost/mapmost-webgl';`
 
-  ##### CDN
+  #### CDN
 
   - 在HTML文件的`<head>`部分引用js文件。
     ```js
@@ -60,7 +60,7 @@
     ```
 
 
-#### 初始化
+### 初始化
 在HTML文件的`<body>`中添加以下代码。
 
 ```js
@@ -78,7 +78,7 @@
 </script>
 ```
 
-### 示例
+## 示例
 
 - 示例正在持续更新中，想要了解更多请参考 [示例预览](https://www.mapmost.com/mapmost_docs/webgl/latest/docs/card-default)。
 
