@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>监控视频展示</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .video {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .mapmostgl-popup-content {
+            padding: 15px 10px 10px !important;
+        }
+
+        .mapmostgl-popup {
+            max-width: 460px !important;
+        }
+
+        .tip {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background: #fff;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            line-height: 24px;
+        }
+    </style>
+    <script src="https://delivery.mapmost.com/cdn/sdk/webgl/v3.5.0/mapmost-webgl-min.js"></script>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div class="tip" id="tip">
+        <span>请点击摄像头图标，查看监控视频。</span>
+    </div>
+    <script>
+let map = new mapmost.Map({
+    container: 'map',
+    style: "https://www.mapmost.com/cdn/styles/sample_data.json",
+    center: [120.71964314634613, 31.29289528537531],
+    zoom: 15.8,
+    pitch: 45,
+    userId:"***"  // 请输入您的授权码，授权码获取地址为：https://www.mapmost.com/#/productApply/webgl
+});
+
+map.on("load", function () {
+
+    // 添加摄像头位置数据
+    map.addSource("camera", {
+        "type": "geojson",
+        data: "https://delivery.mapmost.com/cdn/WebGLData/data/camera.geojson"
+    })
+
+    // 添加摄像头图标图层
+    map.loadImage('https://delivery.mapmost.com/cdn/WebGLData/img/camera.png', function (error, image) {
+        if (error) throw error;
+        map.addImage('icon', image)
+        map.addLayer({
+            "id": "icon_camera",
+            "type": "symbol",
+            "source": "camera",
+            "layout": {
+                "icon-image": "icon",
+                "icon-size": 0.75,
+                "visibility": "visible"
+            },
+        })
+    })
+
+    let popup;
+    map.on("click", 'icon_camera', function (e) {
+        let coor = e.lngLat
+        let id = e.features[0].id
+        if (popup) {
+            popup.remove() // 移除popup
+            popup = null
+        }
+
+        // 添加popup，显示摄像头视频
+        popup = new mapmost.Popup({ focusAfterOpen: false, closeOnClick: false })
+            .setLngLat([coor.lng, coor.lat])
+            .setHTML('<video class="video" src="https://delivery.mapmost.com/cdn/WebGLData/video/cameraVideo.mp4" autoplay muted loop></video>')
+            .addTo(map);
+    })
+})
+
+</script>
+</body>
+
+</html>

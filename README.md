@@ -90,5 +90,9 @@
 |---------|-----------------------|-----------------------
 |<img alt="mapmost" src="./docs/vector_visualFieldAnalysis.gif"  width='250px' height='155px'>|<img alt="mapmost" src="./docs/model_visualFieldAnalysis.gif"  width='250px' height='155px'>|<img alt="mapmost" src="./docs/3DTiles_visualFieldAnalysis.gif"  width='250px' height='155px'>
 
-### License
+|添加动态图标|监控视频展示
+|---------|-----------------------
+|<img alt="mapmost" src="./docs/dynamicIcons.gif"  width='250px' height='155px'>|<img alt="mapmost" src="./docs/videocIcons.gif"  width='250px' height='155px'>
+
+## License
 The MIT License.
